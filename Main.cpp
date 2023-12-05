@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -69,26 +70,51 @@ static void DumpFSDFile(const char *FileName)
         return;
     }
 
+    std::map<unsigned char, int> Errors;
+    std::map<int, int> SectorSizes;
+    bool HasNonReadableTracks = false;
+    bool HasNonDefaultTrackIDs = false;
+    bool HasNonDefaultSectorIDs = false;
+
     const int Head = 0;
 
-    unsigned char FSDheader[8]; // FSD - Header information
-    fread(FSDheader, 1, 8, infile); // Skip FSD Header
+    unsigned char FSDHeader[3];
+    fread(FSDHeader, 1, 3, infile); // Read FSD Header
 
-    printf("FSD Header: ");
-    Dump(FSDheader, 8);
-
-    printf("\n");
-
-    std::string disctitle;
-    char dtchar = 1;
-
-    while (dtchar != 0)
+    if (FSDHeader[0] != 'F' || FSDHeader[1] != 'S' || FSDHeader[2] != 'D')
     {
-        dtchar = fgetc(infile);
-        disctitle = disctitle + dtchar;
+        fprintf(stderr, "Missing FSD file header\n");
+        fclose(infile);
+
+        return;
     }
 
-    printf("Disc Title: %s\n", disctitle.c_str());
+    // See https://github.com/richtw1/fsd2fdi/blob/master/src/fsdimage.cpp
+
+    unsigned char Info[5];
+    fread(Info, 1, 5, infile);
+
+    int Day = Info[0] >> 3;
+    int Month = Info[2] & 0x0F;
+    int Year = ((Info[0] & 0x07) << 8) | Info[1];
+
+    int CreatorID = Info[2] >> 4;
+    int Release = ((Info[4] >> 6) << 8) | Info[3];
+
+    printf("Date: %02d-%02d-%d\n", Day, Month, Year);
+    printf("CreatorID: %d\n", CreatorID);
+    printf("Release: %d\n", Release);
+
+    std::string Title;
+    char Char = 1;
+
+    while (Char != '\0')
+    {
+        Char = fgetc(infile);
+        Title += Char;
+    }
+
+    printf("Disc Title: %s\n", Title.c_str());
 
     int TotalTracks = fgetc(infile); // Read number of tracks on disk image
 
@@ -96,11 +122,10 @@ static void DumpFSDFile(const char *FileName)
 
     for (int Track = 0; Track < TotalTracks; Track++)
     {
-        unsigned char fctrack = fgetc(infile); // Read current track details
+        unsigned char TrackNumber = fgetc(infile); // Read current track details
         unsigned char SectorsPerTrack = fgetc(infile); // Read number of sectors on track
 
-        printf("Track: %d\n", Track);
-        // printf("fctrack: %d\n", fctrack);
+        printf("Track: %d\n", TrackNumber);
         printf("Sectors: %d\n", SectorsPerTrack);
 
         if (SectorsPerTrack > 0) // i.e., if the track is formatted
@@ -111,11 +136,16 @@ static void DumpFSDFile(const char *FileName)
 
             for (int Sector = 0; Sector < SectorsPerTrack; Sector++)
             {
-                printf("Track %d, Sector %d\n", Track, Sector);
+                printf("Track %d, Sector %d\n", TrackNumber, Sector);
 
                 unsigned char LogicalTrack = fgetc(infile); // Logical track ID
 
                 printf("Logical Track ID: %d\n", LogicalTrack);
+
+                if (LogicalTrack != TrackNumber)
+                {
+                    HasNonDefaultTrackIDs = true;
+                }
 
                 unsigned char HeadNum = fgetc(infile); // Head number
 
@@ -125,26 +155,41 @@ static void DumpFSDFile(const char *FileName)
 
                 printf("Logical Sector ID: %d\n", LogicalSector);
 
+                if (LogicalSector != Sector)
+                {
+                    HasNonDefaultSectorIDs = true;
+                }
+
                 unsigned char FRecLength = fgetc(infile); // Reported length of sector
 
                 printf("Reported Sector Length: %d (%d bytes)\n", FRecLength, GetFSDSectorSize(FRecLength));
 
                 if (TrackIsReadable == 255)
                 {
-                    unsigned char FPRecLength = fgetc(infile); // Real size of sector, can be misreported as copy protection
-                    unsigned short FSectorSize = GetFSDSectorSize(FPRecLength);
+                    unsigned char RecordLength = fgetc(infile); // Real size of sector, can be misreported as copy protection
+                    unsigned short SectorSize = GetFSDSectorSize(RecordLength);
 
-                    printf("Actual Sector Length: %d (%d bytes)\n", FPRecLength, FSectorSize);
+                    printf("Actual Sector Length: %d (%d bytes)\n", RecordLength, SectorSize);
 
-                    unsigned char FErr = fgetc(infile); // Error code when sector was read
+                    SectorSizes[SectorSize]++;
 
-                    printf("Sector Error: %02X\n\n", FErr);
+                    unsigned char Error = fgetc(infile); // Error code when sector was read
 
-                    std::vector<unsigned char> Data(FSectorSize);
+                    printf("Sector Error: %02X\n\n", Error);
 
-                    fread(&Data[0], 1, FSectorSize, infile);
+                    Errors[Error]++;
+
+                    std::vector<unsigned char> Data(SectorSize);
+
+                    fread(&Data[0], 1, SectorSize, infile);
 
                     Dump(&Data[0], Data.size());
+
+                    printf("\n");
+                }
+                else
+                {
+                    HasNonReadableTracks = true;
 
                     printf("\n");
                 }
@@ -153,6 +198,28 @@ static void DumpFSDFile(const char *FileName)
         else
         {
             printf("\n");
+        }
+    }
+
+    if (Errors.size() > 0)
+    {
+        printf("\nSummary\n-------\n\n");
+        printf("Non-Default Track IDs: %s\n", HasNonDefaultTrackIDs ? "Yes" : "No");
+        printf("Non-Default Sector IDs: %s\n", HasNonDefaultSectorIDs ? "Yes" : "No");
+        printf("Non-Readable Tracks: %s\n", HasNonReadableTracks ? "Yes" : "No");
+
+        printf("\nSector Sizes:\n\n");
+
+        for (const auto& Entry : SectorSizes)
+        {
+            printf("%d bytes: %d\n", Entry.first, Entry.second);
+        }
+
+        printf("\nSector Error Codes:\n\n");
+
+        for (const auto& Entry : Errors)
+        {
+            printf("%02X: %d\n", Entry.first, Entry.second);
         }
     }
 
