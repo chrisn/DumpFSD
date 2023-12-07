@@ -160,16 +160,16 @@ static void DumpFSDFile(const char *FileName)
                     HasNonDefaultSectorIDs = true;
                 }
 
-                unsigned char FRecLength = fgetc(infile); // Reported length of sector
+                unsigned char SectorSize = fgetc(infile); // Reported length of sector
 
-                printf("Reported Sector Length: %d (%d bytes)\n", FRecLength, GetFSDSectorSize(FRecLength));
+                printf("Reported Sector Length: %d (%d bytes)\n", SectorSize, GetFSDSectorSize(SectorSize));
 
                 if (TrackIsReadable == 255)
                 {
-                    unsigned char RecordLength = fgetc(infile); // Real size of sector, can be misreported as copy protection
-                    unsigned short SectorSize = GetFSDSectorSize(RecordLength);
+                    SectorSize = fgetc(infile); // Real size of sector, can be misreported as copy protection
+                    unsigned short ActualSectorSize = GetFSDSectorSize(SectorSize);
 
-                    printf("Actual Sector Length: %d (%d bytes)\n", RecordLength, SectorSize);
+                    printf("Actual Sector Length: %d (%d bytes)\n", SectorSize, ActualSectorSize);
 
                     SectorSizes[SectorSize]++;
 
@@ -179,9 +179,9 @@ static void DumpFSDFile(const char *FileName)
 
                     Errors[Error]++;
 
-                    std::vector<unsigned char> Data(SectorSize);
+                    std::vector<unsigned char> Data(ActualSectorSize);
 
-                    fread(&Data[0], 1, SectorSize, infile);
+                    fread(&Data[0], 1, ActualSectorSize, infile);
 
                     Dump(&Data[0], Data.size());
 
