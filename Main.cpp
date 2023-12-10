@@ -116,7 +116,8 @@ static void DumpFSDFile(const char *FileName)
 
     printf("Disc Title: %s\n", Title.c_str());
 
-    int TotalTracks = fgetc(infile); // Read number of tracks on disk image
+    int LastTrack = fgetc(infile); // Read number of last track on disk image
+    int TotalTracks = LastTrack + 1;
 
     printf("Tracks: %d\n\n", TotalTracks);
 
@@ -171,7 +172,7 @@ static void DumpFSDFile(const char *FileName)
 
                     printf("Actual Sector Length: %d (%d bytes)\n", SectorSize, ActualSectorSize);
 
-                    SectorSizes[SectorSize]++;
+                    SectorSizes[ActualSectorSize]++;
 
                     unsigned char Error = fgetc(infile); // Error code when sector was read
 
