@@ -76,8 +76,6 @@ static void DumpFSDFile(const char *FileName)
     bool HasNonDefaultTrackIDs = false;
     bool HasNonDefaultSectorIDs = false;
 
-    const int Head = 0;
-
     unsigned char FSDHeader[3];
     fread(FSDHeader, 1, 3, infile); // Read FSD Header
 
@@ -200,26 +198,23 @@ static void DumpFSDFile(const char *FileName)
         }
     }
 
-    if (Errors.size() > 0)
+    printf("\nSummary\n-------\n\n");
+    printf("Non-Default Track IDs: %s\n", HasNonDefaultTrackIDs ? "Yes" : "No");
+    printf("Non-Default Sector IDs: %s\n", HasNonDefaultSectorIDs ? "Yes" : "No");
+    printf("Non-Readable Tracks: %s\n", HasNonReadableTracks ? "Yes" : "No");
+
+    printf("\nSector Sizes:\n\n");
+
+    for (const auto& Entry : SectorSizes)
     {
-        printf("\nSummary\n-------\n\n");
-        printf("Non-Default Track IDs: %s\n", HasNonDefaultTrackIDs ? "Yes" : "No");
-        printf("Non-Default Sector IDs: %s\n", HasNonDefaultSectorIDs ? "Yes" : "No");
-        printf("Non-Readable Tracks: %s\n", HasNonReadableTracks ? "Yes" : "No");
+        printf("%d bytes: %d\n", Entry.first, Entry.second);
+    }
 
-        printf("\nSector Sizes:\n\n");
+    printf("\nSector Error Codes:\n\n");
 
-        for (const auto& Entry : SectorSizes)
-        {
-            printf("%d bytes: %d\n", Entry.first, Entry.second);
-        }
-
-        printf("\nSector Error Codes:\n\n");
-
-        for (const auto& Entry : Errors)
-        {
-            printf("%02X: %d\n", Entry.first, Entry.second);
-        }
+    for (const auto& Entry : Errors)
+    {
+        printf("%02X: %d\n", Entry.first, Entry.second);
     }
 
     fclose(infile);
