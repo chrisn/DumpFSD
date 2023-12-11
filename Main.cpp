@@ -89,8 +89,6 @@ static void DumpFSDFile(const char *FileName)
         return;
     }
 
-    // See https://github.com/richtw1/fsd2fdi/blob/master/src/fsdimage.cpp
-
     unsigned char Info[5];
     fread(Info, 1, 5, infile);
 
