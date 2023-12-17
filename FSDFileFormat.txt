@@ -22,7 +22,8 @@ For each track
            Track_ID: 1 byte
         Head_number: 1 byte
           Sector_ID: 1 byte
-      reported_size: 1 byte (2^{7+x}; 0 ==>128, 1 ==> 256, 2==>512, 3==>1024 etc)
+      reported_size: 1 byte (2^{7+x}; 0 ==> 128, 1 ==> 256, 2 ==> 512, 3 ==> 1024, etc.)
+
         If the track is readable each sector also has:
         ==============================================
           real_size: 1 byte (2^{7+x})
@@ -35,9 +36,9 @@ Error codes:
 0E = Data CRC Error
 18 = Sector not found - TODO: Possibly bad FSD
 20 = Deleted Data
-E0 = CRC valid for reads of &80 bytes, return CRC error otherwise
-E1 = CRC valid for reads of &100 bytes, return CRC error otherwise
-E2 = CRC valid for reads of &200 bytes, return CRC error otherwise
+E0 = CRC valid for reads of 128 bytes, return CRC error otherwise
+E1 = CRC valid for reads of 256 bytes, return CRC error otherwise
+E2 = CRC valid for reads of 512 bytes, return CRC error otherwise
 
 The error numbers less than 0x40 match the OSWORD &7F result byte
 
@@ -53,10 +54,10 @@ Decoding of the "creator" 5 byte field:
 
 Notes
 =====
-The E1 error code represents a sector that is really &100 bytes long but
-declares itself as something longer, for example &200 bytes.  The FSD
+The E1 error code represents a sector that is really 256 bytes long but
+declares itself as something longer, for example 512 bytes. The FSD
 format stores the over-read data so both the reported and real sizes are
-&200 bytes, but the CRC is only correct for a read of &100 bytes.
+512 bytes, but the CRC is only correct for a read of 256 bytes.
 The E0 and E2 codes work similarly.
 
 Some titles (specifically from Sherston Software) expect the data to be
