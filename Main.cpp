@@ -97,7 +97,7 @@ static void DumpFSDFile(const char *FileName)
     int CreatorID = Info[2] >> 4;
     int Release = ((Info[4] >> 6) << 8) | Info[3];
 
-    printf("Date: %02d-%02d-%d\n", Day, Month, Year);
+    printf("Date: %02d-%02d-%04d\n", Day, Month, Year);
     printf("CreatorID: %d\n", CreatorID);
     printf("Release: %d\n", Release);
 
@@ -129,7 +129,7 @@ static void DumpFSDFile(const char *FileName)
         {
             unsigned char TrackIsReadable = fgetc(infile); // Is track readable?
 
-            printf("Readable: %d\n\n", TrackIsReadable);
+            printf("Readable: %s\n\n", TrackIsReadable == 255 ? "Yes" : "No");
 
             for (int Sector = 0; Sector < SectorsPerTrack; Sector++)
             {
